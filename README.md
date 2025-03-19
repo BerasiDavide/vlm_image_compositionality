@@ -20,14 +20,14 @@ cd vlm_image_compositionality
 ```
 Install the the needed packages:
 ```
-pip install open_clip_torch, scipy, pandas
+pip install open_clip_torch scipy pandas
 ```
 
 ## Compositional Classification
 
 - Download the MIT-States and UT-Zappos datasets:
 ```
-sh download_data.sh
+sh utils/download_data.sh
 ```
 - Compute the VLM embeddings and store them in the correct directory:
 ```
@@ -37,7 +37,7 @@ python -m datasets.compute_embeddings 'ut-zappos' 'ViT-L-14' 'openai'
 RK: Any pre-trained OpenCLIP model can be used ([available models](https://colab.research.google.com/github/mlfoundations/open_clip/blob/master/docs/Interacting_with_open_clip.ipynb#scrollTo=uLFS29hnhlY4)).
 
 
-- Run a classification experiment with `classification.py`. For example, you can perform classification on ut-zappos, in open world scenario, with GDE decompositions of ('ViT-L-14', 'openai') image embeddings as classifiers, with:
+- Run a classification experiment with `classification.py`. For example, you can perform classification on Ut-Zappos, in open world scenario, with GDE decompositions of ('ViT-L-14', 'openai') image embeddings as classifiers, with:
 ```
 python -m classification \
   --dataset 'ut-zappos' \
@@ -76,7 +76,7 @@ python datasets/reorganize_celebA.py
 python -m datasets.compute_embeddings 'waterbirds' 'ViT-L-14' 'openai'
 python -m datasets.compute_embeddings 'celebA' 'ViT-L-14' 'openai'
 ```
-- Run a group robustness experiment with `group_robustness.py`. For example, you can evaluate group robustness on waterbirds, with GDE decompositions of ('ViT-L-14', 'openai') image embeddings, with:
+- Run a group robustness experiment with `group_robustness.py`. For example, you can evaluate group robustness on Waterbirds, with GDE decompositions of ('ViT-L-14', 'openai') image embeddings, with:
 ```
 python -m group_robustness \
   --dataset 'waterbirds' \
