@@ -171,7 +171,8 @@ if __name__ == '__main__':
     model, _, preprocess = create_model_and_transforms(
         model_name=args.model_architecture,
         pretrained=args.model_pretraining,
-        device=device
+        device=device,
+        quick_gelu=True
         )
     model.eval()
 
