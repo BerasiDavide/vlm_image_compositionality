@@ -67,7 +67,7 @@ class CompositionalFactorizer:
         Class that represents a compositional structure for a set of embeddings.
         Input:
             dataset: dataset of the embeddings
-            embs_for_IW: embeddings used to compute the ideal words
+            embs_for_IW: embeddings used to compute the Ideal Words (primitive directions in the optimal decomposition)
             all_pair_gt: (attr, obj) label for `embs_for_IW`
             weights: weights assigned to the `embs_for_IW`, if `None` uniform weights are used. Weights are automatically normalized within pair.
         '''

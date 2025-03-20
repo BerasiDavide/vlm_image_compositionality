@@ -40,7 +40,6 @@ def run_main_with_optimal_T(config: argparse.Namespace, verbose=True):
         result = main(config_T, verbose=False)
 
         obj = result[objective]
-        print(T, obj) 
         if obj >= objective_optim:
             T_optim, objective_optim = T, obj
 

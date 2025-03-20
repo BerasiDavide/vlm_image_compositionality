@@ -1,3 +1,5 @@
+#!/bin/sh
+
 CURRENT_DIR=$(pwd)
 
 mkdir -p data
@@ -28,3 +30,6 @@ cd $CURRENT_DIR
 python3 datasets/reorganize_utzap.py
 
 mv data/ut-zap50k data/ut-zappos
+
+echo "New dataset created: data/mit-states"
+echo "New dataset created: data/ut-zappos"

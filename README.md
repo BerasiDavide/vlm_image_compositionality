@@ -18,16 +18,17 @@ Clone the repo and enter in it:
 git clone https://github.com/BerasiDavide/vlm_image_compositionality
 cd vlm_image_compositionality
 ```
-Install the the needed packages:
+Create the conda environment and activate it:
 ```
-pip install open_clip_torch scipy pandas transformers
+conda env create -f environment.yml
+conda activate img_comp
 ```
 
 ## Compositional Classification
 
 - Download the MIT-States and UT-Zappos datasets:
 ```
-sh utils/download_data.sh
+sh utils/download_classification_data.sh
 ```
 - Compute the VLM embeddings and store them in the correct directory:
 ```
@@ -52,14 +53,13 @@ RK: This applies a uniform noise distribution for the decomposition. Use instead
 
 ## Group Robustness
 
-- Dowload the Waterbirds dataset ([link](https://nlp.stanford.edu/data/dro/waterbird_complete95_forest2water2.tar.gz)) and the celebA dataset ([link](https://www.kaggle.com/jessicali9530/celeba-dataset)) and position them in the ```data``` folder. Ensure to have this structure:
+- Download the Waterbirds dataset:
 ```
-data
-└───waterbird_complete95_forest2water2
-│   │   metadata.csv
-|   └───001.Black_footed_Albatross
-│   └───...
-│   
+sh utils/download_waterbirds.sh
+``` 
+Download the CelebA dataset at [this link](https://www.kaggle.com/jessicali9530/celeba-dataset) and position it in the ```data/``` folder. Ensure to have this structure:
+```
+data 
 └───celeba-dataset
     │   list_attr_celeba.csv
     |   list_eval_partition.csv
@@ -68,7 +68,6 @@ data
 ```
 Then run:
 ```
-python datasets/reorganize_waterbirds.py
 python datasets/reorganize_celebA.py
 ```
 - Compute the VLM embeddings and store them in the correct directory:
@@ -85,3 +84,4 @@ python -m group_robustness \
   --experiment_name 'GDE' \
   --modality_IW 'image'
 ```
+RK: Similarly to classification, use `group_robustness_optim.py` to apply the CLIP image-to-text distribution with optimal temperature as the noise weights.

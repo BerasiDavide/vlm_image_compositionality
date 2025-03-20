@@ -312,7 +312,7 @@ def main(config: argparse.Namespace, verbose=False):
         else:
             # Representations are ideal words approximations:
             
-            # 1) Prepare the embeddings that will be used to compute the IW
+            # 1) Prepare the embeddings that will be used to compute the ideal words (primitive directions in the optimal decomposition)
             if config.modality_IW == 'text':
                 all_pairs_IW = train_dataset.full_pairs
                 embs_for_IW = train_dataset.load_text_embs(all_pairs_IW)
@@ -337,7 +337,7 @@ def main(config: argparse.Namespace, verbose=False):
                 weights = compute_weights(embs_for_IW, all_pairs_IW, train_dataset,
                                           use_clip_score=False)
 
-            # 3) Select the factorizer used to compute/combine ideal words (ie, the optimal primitive directions)
+            # 3) Select the factorizer used to compute/combine ideal words
             Factorizer = FACTORIZERS[name]
             factorizer = Factorizer(embs_for_IW, all_pairs_IW, weights)
             
