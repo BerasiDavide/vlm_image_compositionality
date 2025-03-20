@@ -20,7 +20,7 @@ cd vlm_image_compositionality
 ```
 Install the the needed packages:
 ```
-pip install open_clip_torch scipy pandas
+pip install open_clip_torch scipy pandas transformers
 ```
 
 ## Compositional Classification

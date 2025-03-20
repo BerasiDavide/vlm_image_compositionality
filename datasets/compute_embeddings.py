@@ -3,7 +3,7 @@ import os
 import argparse
 import json
 
-from open_clip import create_model_and_transforms, tokenizer
+from open_clip import create_model_and_transforms, get_tokenizer
 from tqdm import tqdm
 from itertools import product
 
@@ -97,7 +97,7 @@ def compute_text_embeddings(dataset: CompositionDataset, dataset_name, model, to
         for text in tqdm(prompts_chunks,
                          total=len(prompts)//128+1,
                          desc='Computing text embeddings '):
-            text_tokens = tokenizer.tokenize(text)
+            text_tokens = tokenizer(text)
             text_emb = model.encode_text(
                 text_tokens.to(device), normalize=False
                 ).float()
@@ -138,8 +138,8 @@ def compute_image_embeddings(dataset: CompositionDataset, model, preprocess, dev
             imgs = torch.stack(imgs, 0)
             imgs_emb = model.encode_image(imgs.to(device),
                                           normalize=False).float()
-            image_embeddings.append(imgs_emb)
-    image_embeddings = torch.cat(image_embeddings, 0).to('cpu')
+            image_embeddings.append(imgs_emb.to('cpu'))
+    image_embeddings = torch.cat(image_embeddings, 0)
     torch.save({'image_ids': all_images,
                 'embeddings': image_embeddings,
                 'pairs': all_pairs},
@@ -168,12 +168,19 @@ if __name__ == '__main__':
     
 
     # Instantiate model
-    model, _, preprocess = create_model_and_transforms(
-        model_name=args.model_architecture,
-        pretrained=args.model_pretraining,
-        device=device,
-        quick_gelu=True
-        )
+    if args.model_pretraining == "openai":
+        model, _, preprocess = create_model_and_transforms(
+            model_name=args.model_architecture,
+            pretrained=args.model_pretraining,
+            device=device,
+            quick_gelu=True # All OpenAI pretrained weights will always default to QuickGELU.
+            )
+    else:
+        model, _, preprocess = create_model_and_transforms(
+            model_name=args.model_architecture,
+            pretrained=args.model_pretraining,
+            device=device
+            )
     model.eval()
 
     # Instantiate dataset
@@ -186,6 +193,7 @@ if __name__ == '__main__':
     outputfile_id = f"emb_{args.model_architecture}_{args.model_pretraining}.pt"
     if not args.no_text:
         output_file = 'TEXT' + outputfile_id
+        tokenizer = get_tokenizer(args.model_architecture)
         compute_text_embeddings(dataset, args.dataset, model, tokenizer, device, output_file)
 
     if not args.no_image:

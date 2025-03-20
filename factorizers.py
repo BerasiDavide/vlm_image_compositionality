@@ -58,31 +58,6 @@ def compute_attr_obj_means(embeddings, all_pairs_gt, centered=True, weights=None
     return mean_all, attr_means, obj_means
 
 
-def compute_weights(embs_for_IW, all_pairs_IW, train_dataset, use_clip_score=False, temperature=0.01):
-    '''
-    Computes the weights assigned to each embedding in the noise distribution.
-    '''
-    device = embs_for_IW.device
-    if len(set(all_pairs_IW))==len(all_pairs_IW):
-        weights = None
-    else:
-        if use_clip_score:  # Use CLIP Weights (only in image modality)
-            text_embs = train_dataset.load_text_embs(all_pairs_IW)
-            logits = torch.sum(embs_for_IW * text_embs, dim=1)
-            
-            T = temperature
-            weights = logits if T=='None' else torch.exp(logits / float(T))
-        else:
-            weights = torch.ones(len(all_pairs_IW)).float().to(device)  # Uniform weights
-
-        # Normalize within pair:
-        _, inverse = np.unique(all_pairs_IW, axis=0, return_inverse=True)
-        inverse = torch.LongTensor(inverse).to(device)
-        group_sums = torch.bincount(inverse, weights=weights).float()
-        weights /= group_sums[inverse]
-    return weights
-
-
 # Factorizers
 
 class CompositionalFactorizer:

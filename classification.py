@@ -13,7 +13,7 @@ from scipy.stats import hmean
 from datasets.read_datasets import DATASET_PATHS
 from datasets.composition_dataset import CompositionDatasetEmbeddings
 from utils.utils import set_seed
-from factorizers import FACTORIZERS, compute_weights
+from factorizers import FACTORIZERS
 
 def accuracy(y_pred, y_true):
     n_correct = torch.eq(y_pred, y_true).sum().item()
@@ -219,6 +219,7 @@ class Evaluator:
             }
         return fast_metrics
 
+
 def select_n_embs_per_pair(embeddings, all_pairs, n: int):
     '''Randomly selects up to n embeddings for each pair.'''
     # Create dict pair->list[embeddings]
@@ -238,11 +239,37 @@ def select_n_embs_per_pair(embeddings, all_pairs, n: int):
     selected_embs = torch.stack(selected_embs)
     return selected_embs, selected_all_pairs
 
+
 def compute_logits(image_embs, label_embs):
     logit_scale = exp(0.07)
     logit_scale = logit_scale if logit_scale<=100.0 else 100.0
     logits = logit_scale * image_embs @ label_embs.t()
     return logits.to('cpu')
+
+
+def compute_weights(embs_for_IW, all_pairs_IW, train_dataset, use_clip_score=False, temperature=0.01, probs_type='clip'):
+    device = embs_for_IW.device
+    if len(set(all_pairs_IW))==len(all_pairs_IW):
+        weights = None
+    else:
+        if use_clip_score:  # Use CLIP Weights (only in image modality)
+            text_embs = train_dataset.load_text_embs(all_pairs_IW)
+            logits = torch.sum(embs_for_IW * text_embs, dim=1)
+            T = temperature
+            if probs_type=='clip':
+                weights = torch.exp(logits / float(T))
+            elif probs_type=='SigLIP':
+                logit_bias = -16.54513931274414
+                weights = torch.sigmoid(logits / float(T) + logit_bias)           
+        else:
+            weights = torch.ones(len(all_pairs_IW)).float().to(device)  # Uniform weights within pairs
+
+        # Normalize within pair:
+        _, inverse = np.unique(all_pairs_IW, axis=0, return_inverse=True)
+        inverse = torch.LongTensor(inverse).to(device)
+        group_sums = torch.bincount(inverse, weights=weights).float()
+        weights /= group_sums[inverse]
+    return weights
 
 
 def main(config: argparse.Namespace, verbose=False):
@@ -302,8 +329,9 @@ def main(config: argparse.Namespace, verbose=False):
             # 2) Compute noise distribution
             if 'CW' in config.experiment_name:  # Use CLIP Weights (only in image modality)
                 name, _, T = config.experiment_name.split('_') # Expect name_CW_T
+                probs_type = 'SigLIP' if 'SigLIP' in config.model_architecture else 'clip'
                 weights = compute_weights(embs_for_IW, all_pairs_IW, train_dataset,
-                                          use_clip_score=True, temperature=T)
+                                          use_clip_score=True, temperature=T, probs_type=probs_type)
             else:
                 name = config.experiment_name
                 weights = compute_weights(embs_for_IW, all_pairs_IW, train_dataset,
