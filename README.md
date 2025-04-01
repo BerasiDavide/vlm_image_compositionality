@@ -85,3 +85,14 @@ python -m group_robustness \
   --modality_IW 'image'
 ```
 RK: Similarly to classification, use `group_robustness_optim.py` to apply the CLIP image-to-text distribution with optimal temperature as the noise weights.
+
+## Citation
+Please cite this work as follows if you find it useful!
+```bibtex
+@article{berasi2025not,
+  title={Not Only Text: Exploring Compositionality of Visual Representations in Vision-Language Models},
+  author={Davide Berasi and Matteo Farina and Massimiliano Mancini and Elisa Ricci and Nicola Strisciuglio},
+  journal={arXiv preprint arXiv:2503.17142},
+  year={2025}
+}
+```
