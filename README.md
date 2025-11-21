@@ -109,7 +109,7 @@ python -m classification \
   --dataset 'ut-zappos' \
   --model_architecture 'MERU-L' \
   --model_pretraining 'MERU' \
-  --experiment_name 'hypLDE' \
+  --experiment_name 'hypGDE' \
   --modality_IW 'image'
 ```
 
