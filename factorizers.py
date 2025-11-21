@@ -9,6 +9,11 @@ from sphere import (calculate_intrinstic_mean,
                     exponential_map,
                     parallel_transport)
 
+import sys
+sys.path.append("./meru/")
+from meru import lorentz as L
+from meru import lorentz_geoopt as LG
+
 
 def weighted_mean(embeddings, weights=None):
     '''Calculate the weighted mean of `embeddings`. The `weights` are normalized.'''
@@ -195,7 +200,73 @@ class GDE(CompositionalFactorizer):
         return unique_pairs, denoised_pair
 
 
+# Hyperbolic Factorizers
+
+class HyperbolicLDE(CompositionalFactorizer):
+    name = 'hyperbolicLDE'
+    curv = 0.1
+
+    def compute_ideal_words(self, embeddings, all_pairs_gt, weights):
+
+        x = embeddings
+        t = torch.sqrt(1 / self.curv + torch.sum(x**2, dim=-1, keepdim=True))
+        embeddings = torch.cat((t, x), dim=1) # Embeddings (i.e. points on H) have coordinates (t, x)
+
+        return compute_attr_obj_means(embeddings, all_pairs_gt, weights=weights)
+
+    def combine_ideal_words(self, *ideal_words, context=None):
+        if context is None:
+            context = self.context
+        ideal_words = torch.stack(ideal_words)
+        return context + torch.sum(ideal_words, dim=0)
+    
+    def get_denoised_pair(self):
+        unique_pairs = list(set(self.all_pairs_gt))
+        denoised_pair = compute_group_means(self.embs_for_IW, self.all_pairs_gt, unique_pairs)
+        return unique_pairs, denoised_pair
+
+
+class HyperbolicGDE(CompositionalFactorizer):
+    name = 'hyperbolic GDE'
+    curv = torch.tensor(0.1)
+    
+    def compute_ideal_words(self, embeddings, all_pairs_gt, weights):
+
+        x = embeddings
+        t = torch.sqrt(1 / self.curv + torch.sum(x**2, dim=-1, keepdim=True))
+        embeddings = torch.cat((t, x), dim=1) # Embeddings (i.e. points on H) have coordinates (t, x) in geoopt
+
+        intrinsic_mean = LG.calculate_intrinstic_mean(embeddings, k=1/self.curv)
+
+        # 1) Map embedding to the tangent space T_muH
+        embeddings_T = LG.logmap(intrinsic_mean, embeddings, k=1/self.curv)
+
+        # 2) Compute IW on the tangent space
+        v_c, attr_IW, obj_IW = compute_attr_obj_means(embeddings_T, all_pairs_gt, weights=weights)
+        self.v_c = v_c
+
+        context = intrinsic_mean
+        return context, attr_IW, obj_IW
+
+    def combine_ideal_words(self, *ideal_words, context=None):
+        if context is None:
+            context = self.context
+        else:
+            raise NotImplementedError("Non-mu context not implemented")
+        
+        # 3) Combine ideal words in the tangent plane
+        ideal_words = torch.stack(ideal_words)
+        embs_approx_T = torch.sum(ideal_words, dim=0)
+
+        # 4) Map the obtained approximation back to H
+        embs_approx = LG.expmap(context, self.v_c + embs_approx_T, k=1/self.curv)
+        
+        return embs_approx
+
+
 FACTORIZERS = {
     'LDE': LDE,
     'GDE': GDE,
+    'hypLDE': HyperbolicLDE,
+    'hypGDE': HyperbolicGDE,
 }

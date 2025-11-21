@@ -240,10 +240,21 @@ def select_n_embs_per_pair(embeddings, all_pairs, n: int):
     return selected_embs, selected_all_pairs
 
 
-def compute_logits(image_embs, label_embs):
-    logit_scale = exp(0.07)
-    logit_scale = logit_scale if logit_scale<=100.0 else 100.0
-    logits = logit_scale * image_embs @ label_embs.t()
+def compute_logits(image_embs, label_embs, use_lorentz_inner=False):
+    if use_lorentz_inner: # Use Lorentzian inner product: <(x_t,x),(y_t,y)>_L = x.y - x_t*y_t
+        curv = 0.1
+
+        y = label_embs[:,1:]
+        y_time = label_embs[:,0].unsqueeze(1)
+        x = image_embs
+        x_time = torch.sqrt(1 / curv + torch.sum(x**2, dim=-1, keepdim=True))
+
+        logits = x @ y.T - x_time @ y_time.T
+
+    else: # Use standard dot product
+        logit_scale = exp(0.07)
+        logit_scale = logit_scale if logit_scale<=100.0 else 100.0
+        logits = logit_scale * image_embs @ label_embs.t()
     return logits.to('cpu')
 
 
@@ -253,14 +264,27 @@ def compute_weights(embs_for_IW, all_pairs_IW, train_dataset, use_clip_score=Fal
         weights = None
     else:
         if use_clip_score:  # Use CLIP Weights (only in image modality)
-            text_embs = train_dataset.load_text_embs(all_pairs_IW)
-            logits = torch.sum(embs_for_IW * text_embs, dim=1)
-            T = temperature
             if probs_type=='clip':
+                text_embs = train_dataset.load_text_embs(all_pairs_IW)
+                logits = torch.sum(embs_for_IW * text_embs, dim=1)
+                T = temperature
                 weights = torch.exp(logits / float(T))
             elif probs_type=='SigLIP':
+                text_embs = train_dataset.load_text_embs(all_pairs_IW)
+                logits = torch.sum(embs_for_IW * text_embs, dim=1)
+                T = temperature
                 logit_bias = -16.54513931274414
-                weights = torch.sigmoid(logits / float(T) + logit_bias)           
+                weights = torch.sigmoid(logits / float(T) + logit_bias)
+            elif probs_type=='MERU':
+                curv = 0.1
+                text_embs = train_dataset.load_text_embs(all_pairs_IW)
+
+                t_embs = torch.sqrt(1 / curv + torch.sum(embs_for_IW**2, dim=-1))
+                t_text = torch.sqrt(1 / curv + torch.sum(text_embs**2, dim=-1))
+                logits = torch.sum(embs_for_IW * text_embs, dim=1) - t_embs * t_text  # MERU score
+                
+                T = temperature
+                weights = logits if T=='None' else torch.exp(logits / float(T))          
         else:
             weights = torch.ones(len(all_pairs_IW)).float().to(device)  # Uniform weights within pairs
 
@@ -284,14 +308,17 @@ def main(config: argparse.Namespace, verbose=False):
         'model_architecture': config.model_architecture,
         'model_pretraining': config.model_pretraining
     }
+    is_hyperbolic = 'MERU' in config.model_architecture
 
     test_dataset = CompositionDatasetEmbeddings(dataset_path,
                                      phase=config.test_phase,
                                      open_world=config.open_world,
+                                     normalize=not is_hyperbolic,
                                      **model_info)   
          
     train_dataset = CompositionDatasetEmbeddings(dataset_path,
                                         phase='train',
+                                        normalize=not is_hyperbolic,
                                         **model_info)
     
     if verbose:
@@ -329,9 +356,15 @@ def main(config: argparse.Namespace, verbose=False):
             # 2) Compute noise distribution
             if 'CW' in config.experiment_name:  # Use CLIP Weights (only in image modality)
                 name, _, T = config.experiment_name.split('_') # Expect name_CW_T
-                probs_type = 'SigLIP' if 'SigLIP' in config.model_architecture else 'clip'
+                
+                if 'SigLIP' in config.model_architecture:
+                    probs_type = 'SigLIP'
+                elif is_hyperbolic:
+                    probs_type = 'MERU'
+                else:
+                    probs_type = 'clip'
                 weights = compute_weights(embs_for_IW, all_pairs_IW, train_dataset,
-                                          use_clip_score=True, temperature=T, probs_type=probs_type)
+                                          use_clip_score=not is_hyperbolic, temperature=T, probs_type=probs_type)
             else:
                 name = config.experiment_name
                 weights = compute_weights(embs_for_IW, all_pairs_IW, train_dataset,
@@ -351,7 +384,7 @@ def main(config: argparse.Namespace, verbose=False):
         image_embs = image_embs.to(device)
         test_pair_embs = test_pair_embs.to(device)
 
-        logits = compute_logits(image_embs, test_pair_embs)
+        logits = compute_logits(image_embs, test_pair_embs, use_lorentz_inner=is_hyperbolic)
 
         # Evaluate predictions
         evaluator = Evaluator(test_dataset)

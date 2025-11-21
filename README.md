@@ -86,6 +86,33 @@ python -m group_robustness \
 ```
 RK: Similarly to classification, use `group_robustness_optim.py` to apply the CLIP image-to-text distribution with optimal temperature as the noise weights.
 
+## Compositional Classification with MERU
+You can perform compositional classification with [MERU](https://github.com/facebookresearch/meru)'s hyperbolic embeddings.
+
+Create the conda environment and activate it:
+```
+conda env create -f environment_MERU.yml
+conda activate MERU_img_comp
+```
+- Download MERU's pretrained checkpoint:
+```
+wget -O meru/checkpoints/meru_vit_l.pth "https://dl.fbaipublicfiles.com/meru/meru_vit_l.pth"
+```
+- Compute the MERU's embeddings and store them in the correct directory:
+```
+python -m datasets.compute_embeddings_MERU 'mit-states' 'MERU-L' 'MERU'
+python -m datasets.compute_embeddings_MERU 'ut-zappos' 'MERU-L' 'MERU'
+```
+- Run a classification experiment with `classification.py` or `classification_optim.py`. For example, you can perform classification on Ut-Zappos, in open closed scenario, with GDE decompositions of MERU-ViT-L image embeddings as classifiers, with:
+```
+python -m classification \
+  --dataset 'ut-zappos' \
+  --model_architecture 'MERU-L' \
+  --model_pretraining 'MERU' \
+  --experiment_name 'hypLDE' \
+  --modality_IW 'image'
+```
+
 ## Citation
 Please cite this work as follows if you find it useful!
 ```bibtex
